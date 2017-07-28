@@ -349,7 +349,7 @@ public class WorkspaceImpl implements Workspace {
         }
 
         public WorkspaceImplBuilder setAttributes(Map<String, String> attributes) {
-            this.attributes = new HashMap<>(attributes);
+            this.attributes = attributes;
             return this;
         }
 
