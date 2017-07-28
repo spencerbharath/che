@@ -54,6 +54,7 @@ import org.eclipse.che.api.vfs.search.SearchResult;
 import org.eclipse.che.api.vfs.search.SearchResultEntry;
 import org.eclipse.che.api.vfs.search.Searcher;
 import org.eclipse.che.api.vfs.search.impl.LuceneSearcher;
+import org.eclipse.che.api.vfs.util.ReadFileUtil;
 import org.eclipse.che.api.workspace.shared.dto.NewProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.ProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.SourceStorageDto;
@@ -82,6 +83,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -98,6 +100,7 @@ import static org.eclipse.che.api.project.server.DtoConverter.asDto;
 import static org.eclipse.che.api.project.shared.Constants.LINK_REL_CREATE_BATCH_PROJECTS;
 import static org.eclipse.che.api.project.shared.Constants.LINK_REL_CREATE_PROJECT;
 import static org.eclipse.che.api.project.shared.Constants.LINK_REL_GET_PROJECTS;
+import static org.eclipse.che.api.vfs.util.ReadFileUtil.*;
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
 
 /**
@@ -924,15 +927,25 @@ public class ProjectService extends Service {
 
             if (child != null && child.isFile()) {
                 final ItemReference itemReference = injectFileLinks(asDto((FileEntry)child));
+                final File file = child.getVirtualFile().toIoFile();
                 final List<LuceneSearcher.OffsetData> datas = searchResultEntry.getData();
                 List<SearchOccurrenceDto> searchOccurrenceDtos = new ArrayList<>(datas.size());
                 for(LuceneSearcher.OffsetData data : datas) {
-                    final SearchOccurrenceDto
-                            searchOccurrenceDto = DtoFactory.getInstance().createDto(SearchOccurrenceDto.class).withPhrase(data.phrase)
-                                                            .withScore(data.score)
-                                                            .withStartOffset(data.startOffset)
-                                                            .withEndOffset(data.endOffset);
-                    searchOccurrenceDtos.add(searchOccurrenceDto);
+                    try {
+                        final Line line = getLine(file, data.startOffset);
+
+                        final SearchOccurrenceDto
+                                searchOccurrenceDto = DtoFactory.getInstance().createDto(SearchOccurrenceDto.class).withPhrase(data.phrase)
+                                                                .withScore(data.score)
+                                                                .withStartOffset(data.startOffset)
+                                                                .withEndOffset(data.endOffset)
+                                                                .withLineNumber(line.getLineNumber())
+                                                                .withLineContent(line.getLineContent());
+
+                        searchOccurrenceDtos.add(searchOccurrenceDto);
+                    } catch (IOException e) {
+                        new ServerException(e);
+                    }
                 }
                 final SearchResultDto searchResultDto =
                         DtoFactory.getInstance().createDto(SearchResultDto.class);
@@ -940,6 +953,8 @@ public class ProjectService extends Service {
                 s.add(searchResultDto.withItemReference(itemReference).withSearchOccurrences(searchOccurrenceDtos));
             }
         }
+
+
 
         return s;
     }

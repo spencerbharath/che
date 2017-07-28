@@ -1,7 +1,5 @@
 package org.eclipse.che.ide.api.resources;
 
-import com.google.common.base.MoreObjects;
-
 import org.eclipse.che.api.core.rest.shared.dto.Link;
 import org.eclipse.che.api.project.shared.Constants;
 import org.eclipse.che.api.project.shared.SearchOccurrence;

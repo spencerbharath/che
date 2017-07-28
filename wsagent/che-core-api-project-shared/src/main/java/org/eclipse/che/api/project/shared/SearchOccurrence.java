@@ -52,4 +52,30 @@ public interface SearchOccurrence {
      * @param startOffset
      */
     void setStartOffset(int startOffset);
+
+    /**
+     *
+     * @param lineNumber
+     */
+    void setLineNumber(int lineNumber);
+
+    /**
+     *
+     * @return
+     */
+    int getLineNumber();
+
+
+    /**
+     *
+     * @param lineContent
+     */
+    void setLineContent(String lineContent);
+
+
+    /**
+     *
+     * @return
+     */
+    String getLineContent();
 }

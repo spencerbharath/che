@@ -12,12 +12,30 @@ public class SearchOccurrenceImpl implements SearchOccurrence {
     private int    endOffset;
     private int    startOffset;
     private String phrase;
+    private String lineContent;
+    private int lineNumber;
 
     public SearchOccurrenceImpl(SearchOccurrence searchOccurrence) {
         score = searchOccurrence.getScore();
         endOffset = searchOccurrence.getEndOffset();
         startOffset = searchOccurrence.getStartOffset();
         phrase = searchOccurrence.getPhrase();
+        lineContent = searchOccurrence.getLineContent();
+        lineNumber = searchOccurrence.getLineNumber();
+    }
+
+    public SearchOccurrenceImpl(float score,
+                                int endOffset,
+                                int startOffset,
+                                String phrase,
+                                String lineContent,
+                                int lineNumber) {
+        this.score = score;
+        this.endOffset = endOffset;
+        this.startOffset = startOffset;
+        this.phrase = phrase;
+        this.lineContent = lineContent;
+        this.lineNumber = lineNumber;
     }
 
     @Override
@@ -58,5 +76,25 @@ public class SearchOccurrenceImpl implements SearchOccurrence {
     @Override
     public void setStartOffset(int startOffset) {
         this.startOffset = startOffset;
+    }
+
+    @Override
+    public void setLineNumber(int lineNumber) {
+        this.lineNumber = lineNumber;
+    }
+
+    @Override
+    public int getLineNumber() {
+        return lineNumber;
+    }
+
+    @Override
+    public void setLineContent(String lineContent) {
+        this.lineContent = lineContent;
+    }
+
+    @Override
+    public String getLineContent() {
+        return lineContent;
     }
 }

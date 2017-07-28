@@ -48,4 +48,18 @@ public interface SearchOccurrenceDto extends SearchOccurrence {
      */
     SearchOccurrenceDto withStartOffset(int startOffset);
 
+    /**
+     *
+     * @param lineNumber
+     * @return
+     */
+    SearchOccurrenceDto withLineNumber(int lineNumber);
+
+    /**
+     *
+     * @param lineContent
+     * @return
+     */
+    SearchOccurrenceDto withLineContent(String lineContent);
+
 }
