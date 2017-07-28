@@ -124,7 +124,7 @@ public class JavaReconcilerStrategy
         }
 
         String fqn = resolveFQN(file);
-        String projectPath = project.getLocation().toString();
+        String projectPath = project.getPath();
 
         client.reconcile(fqn, projectPath).onSuccess(reconcileResult -> {
             if (isProjectResolving()) {
