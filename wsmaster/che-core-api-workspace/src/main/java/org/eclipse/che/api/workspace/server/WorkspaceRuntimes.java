@@ -37,9 +37,7 @@ import org.eclipse.che.api.workspace.server.spi.WorkspaceDao;
 import org.eclipse.che.api.workspace.shared.dto.event.RuntimeStatusEvent;
 import org.eclipse.che.api.workspace.shared.dto.event.WorkspaceStatusEvent;
 import org.eclipse.che.commons.env.EnvironmentContext;
-import org.eclipse.che.commons.lang.concurrent.StripedLocks;
 import org.eclipse.che.commons.lang.concurrent.ThreadLocalPropagateContext;
-import org.eclipse.che.commons.lang.concurrent.Unlocker;
 import org.eclipse.che.commons.subject.Subject;
 import org.eclipse.che.core.db.DBInitializer;
 import org.eclipse.che.dto.server.DtoFactory;
@@ -83,8 +81,7 @@ public class WorkspaceRuntimes {
     private final EventService                        eventService;
     private final WorkspaceSharedPool                 sharedPool;
     private final WorkspaceDao                        workspaceDao;
-    private final StripedLocks                        locks;
-    private final AtomicBoolean isStartRefused = new AtomicBoolean(false);
+    private final AtomicBoolean                       isStartRefused;
 
     @Inject
     public WorkspaceRuntimes(EventService eventService,
@@ -95,9 +92,8 @@ public class WorkspaceRuntimes {
         this.runtimes = new ConcurrentHashMap<>();
         this.eventService = eventService;
         this.sharedPool = sharedPool;
-        // 16 - experimental value for stripes count, it comes from default hash map size
-        this.locks = new StripedLocks(16);
         this.workspaceDao = workspaceDao;
+        this.isStartRefused =new AtomicBoolean(false);
 
         // TODO: consider extracting to a strategy interface(1. pick the last, 2. fail with conflict)
         Map<String, RuntimeInfrastructure> tmp = new HashMap<>();
@@ -220,12 +216,7 @@ public class WorkspaceRuntimes {
 
         Subject subject = EnvironmentContext.getCurrent().getSubject();
         RuntimeIdentity runtimeId = new RuntimeIdentityImpl(workspaceId, envName, subject.getUserName());
-        try (@SuppressWarnings("unused") Unlocker u = locks.writeLock(workspaceId)) {
-            if (isStartRefused.get()) {
-                throw new ConflictException(format("Start of the workspace '%s' is rejected by the system, " +
-                                                   "no more workspaces are allowed to start",
-                                                   workspace.getConfig().getName()));
-            }
+        try {
             RuntimeContext runtimeContext = infra.prepare(runtimeId, environment);
 
             InternalRuntime runtime = runtimeContext.getRuntime();
@@ -235,6 +226,11 @@ public class WorkspaceRuntimes {
                         + RuntimeInfrastructure.class);
             }
             RuntimeState state = new RuntimeState(runtime, STARTING);
+            if (isStartRefused.get()) {
+                throw new ConflictException(format("Start of the workspace '%s' is rejected by the system, " +
+                                                   "no more workspaces are allowed to start",
+                                                   workspace.getConfig().getName()));
+            }
             if (runtimes.putIfAbsent(workspaceId, state) != null) {
                 throw new ConflictException("Could not start workspace '" + workspaceId +
                                             "' because it is not in 'STOPPED' state");
@@ -477,28 +473,4 @@ public class WorkspaceRuntimes {
         }
     }
 
-
-//    private void ensurePreDestroyIsNotExecuted() throws ServerException {
-//        if (isPreDestroyInvoked) {
-//            throw new ServerException("Could not perform operation because application server is stopping");
-//        }
-//    }
-//
-
-//    /**
-//     * Safely compares current status of given workspace
-//     * with {@code from} and if they are equal sets the status to {@code to}.
-//     * Returns true if the status of workspace was updated with {@code to} value.
-//     */
-//    private boolean compareAndSetStatus(String id, WorkspaceStatus from, WorkspaceStatus to) {
-//        try (@SuppressWarnings("unused") CloseableLock l = locks.acquireWriteLock(id)) {
-//            WorkspaceState state = workspaces.get(id);
-//            if (state != null && state.getStatus() == from) {
-//                state.status = to;
-//                return true;
-//            }
-//        }
-//        return false;
-//    }
-//
 }

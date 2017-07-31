@@ -68,6 +68,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -275,7 +276,7 @@ public class WorkspaceManagerTest {
         mockRuntimeStatus(workspace1, STOPPED);
         mockRuntimeStatus(workspace2, RUNNING);
 
-        when(runtimes.getStatus(workspace1.getId())).thenReturn(STOPPED);
+        doNothing().when(runtimes).injectRuntime(workspace1);
 
         // when
         final List<WorkspaceImpl> result = workspaceManager.getWorkspaces(NAMESPACE_1, false);
@@ -506,13 +507,6 @@ public class WorkspaceManagerTest {
         }
     }
 
-    private void captureExecuteCallsAndRunSynchronously() {
-        verify(sharedPool, atLeastOnce()).execute(taskCaptor.capture());
-        for (Runnable runnable : taskCaptor.getAllValues()) {
-            runnable.run();
-        }
-    }
-
     private void mockRuntimeStatus(WorkspaceImpl workspace, WorkspaceStatus status) {
         doAnswer(invocationOnMock -> {
             WorkspaceImpl ws = (WorkspaceImpl)invocationOnMock.getArguments()[0];
@@ -525,7 +519,11 @@ public class WorkspaceManagerTest {
         RuntimeIdentity identity = new RuntimeIdentityImpl(workspace.getId(),
                                                            workspace.getConfig().getDefaultEnv(),
                                                            workspace.getNamespace());
-        when(runtimes.getStatus(workspace.getId())).thenReturn(status);
+        doAnswer(inv -> {
+            final WorkspaceImpl ws = (WorkspaceImpl)inv.getArguments()[0];
+            ws.setStatus(status);
+            return ws;
+        }).when(runtimes).injectStatus(workspace);
         MachineImpl machine1 = spy(createMachine());
         MachineImpl machine2 = spy(createMachine());
         Map<String, Machine> machines = new HashMap<>();
