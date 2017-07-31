@@ -16,14 +16,12 @@ import com.google.inject.multibindings.Multibinder;
 /**
  * @author Anton Korneta
  */
-public class SystemApiModule extends AbstractModule {
+public class SystemModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(ServiceTerminator.class);
-        bind(SystemService.class);
-        bind(SystemManager.class);
-        bind(SystemEventsWebsocketBroadcaster.class);
+        bind(org.eclipse.che.api.system.server.SystemService.class);
+        bind(org.eclipse.che.api.system.server.SystemEventsWebsocketBroadcaster.class).asEagerSingleton();
         Multibinder.newSetBinder(binder(), ServiceTermination.class);
     }
 

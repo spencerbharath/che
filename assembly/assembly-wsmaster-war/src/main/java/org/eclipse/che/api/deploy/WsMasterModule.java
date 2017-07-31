@@ -42,10 +42,9 @@ import org.eclipse.che.api.recipe.RecipeDao;
 import org.eclipse.che.api.recipe.RecipeLoader;
 import org.eclipse.che.api.recipe.RecipeService;
 import org.eclipse.che.api.system.server.ServiceTermination;
-import org.eclipse.che.api.system.server.SystemApiModule;
+import org.eclipse.che.api.system.server.SystemModule;
 import org.eclipse.che.api.user.server.TokenValidator;
 import org.eclipse.che.api.workspace.server.RemoveWorkspaceFilesAfterRemoveWorkspaceEventSubscriber;
-import org.eclipse.che.api.workspace.server.URLRewriter;
 import org.eclipse.che.api.workspace.server.adapter.StackMessageBodyAdapter;
 import org.eclipse.che.api.workspace.server.adapter.WorkspaceConfigMessageBodyAdapter;
 import org.eclipse.che.api.workspace.server.adapter.WorkspaceMessageBodyAdapter;
@@ -217,8 +216,10 @@ public class WsMasterModule extends AbstractModule {
 //                .to(org.eclipse.che.plugin.docker.machine.local.LocalCheInfrastructureProvisioner.class);
 
         // system components
-        bind(org.eclipse.che.api.system.server.SystemService.class);
-        bind(org.eclipse.che.api.system.server.SystemEventsWebsocketBroadcaster.class).asEagerSingleton();
+        install(new SystemModule());
+        Multibinder.newSetBinder(binder(), ServiceTermination.class)
+                   .addBinding()
+                   .to(org.eclipse.che.api.workspace.server.WorkspaceServiceTermination.class);
 // FIXME: spi
 //        install(new org.eclipse.che.workspace.infrastructure.docker.old.config.dns.DnsResolversModule());
 
@@ -231,11 +232,7 @@ public class WsMasterModule extends AbstractModule {
         install(new LocalDockerModule());
         install(new OpenshiftInfraModule());
         bind(RemoveWorkspaceFilesAfterRemoveWorkspaceEventSubscriber.class).asEagerSingleton();
-        bind(URLRewriter.class).to(URLRewriter.NoOpURLRewriter.class);
 
-        install(new SystemApiModule());
-        Multibinder.newSetBinder(binder(), ServiceTermination.class)
-                   .addBinding()
-                   .to(org.eclipse.che.api.workspace.server.WorkspaceServiceTermination.class);
+
     }
 }
