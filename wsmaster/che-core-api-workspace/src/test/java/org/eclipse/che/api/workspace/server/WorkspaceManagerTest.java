@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.eclipse.che.api.workspace.server;
 
+import com.google.common.collect.ImmutableSet;
+
 import org.eclipse.che.account.api.AccountManager;
 import org.eclipse.che.account.spi.AccountImpl;
 import org.eclipse.che.api.core.ConflictException;
@@ -46,6 +48,7 @@ import org.testng.annotations.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -68,6 +71,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -236,6 +240,39 @@ public class WorkspaceManagerTest {
         assertEquals(res2.getStatus(), RUNNING, "Workspace status wasn't changed to the runtime instance status");
         assertEquals(res2.getRuntime(), runtime2, "Workspace doesn't have expected runtime");
         assertFalse(res2.isTemporary(), "Workspace must be permanent");
+    }
+
+    @Test
+    public void stopsRunningWorkspacesOnShutdown() throws Exception {
+        when(runtimes.refuseWorkspacesStart()).thenReturn(true);
+
+        WorkspaceImpl stopped = createAndMockWorkspace();
+        mockRuntime(stopped, STOPPED);
+
+        WorkspaceImpl starting = createAndMockWorkspace();
+        mockRuntime(starting, STARTING);
+
+        WorkspaceImpl running = createAndMockWorkspace();
+        mockRuntime(running, RUNNING);
+
+        when(runtimes.getRuntimesIds()).thenReturn(new HashSet<>(asList(running.getId(), starting.getId())));
+
+        // action
+        workspaceManager.shutdown();
+
+        captureRunAsyncCallsAndRunSynchronously();
+        verify(runtimes).stop(eq(running.getId()), any());
+        verify(runtimes).stop(eq(starting.getId()), any());
+        verify(runtimes, never()).stop(eq(stopped.getId()), any());
+        verify(sharedPool).shutdown();
+    }
+
+    @Test
+    public void getsRunningWorkspacesIds() {
+        final ImmutableSet<String> ids = ImmutableSet.of("id1", "id2", "id3");
+        when(runtimes.getRuntimesIds()).thenReturn(ids);
+
+        assertEquals(workspaceManager.getRunningWorkspacesIds(), ids);
     }
 
     @Test
@@ -589,10 +626,6 @@ public class WorkspaceManagerTest {
         TestInternalRuntime(RuntimeContext context, Map<String, Machine> machines) {
             super(context, null, false);
             this.machines = machines;
-        }
-
-        TestInternalRuntime(RuntimeContext context) {
-            this(context, Collections.emptyMap());
         }
 
         @Override
