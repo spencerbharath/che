@@ -14,6 +14,7 @@ import org.eclipse.che.account.api.AccountManager;
 import org.eclipse.che.account.spi.AccountImpl;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.model.workspace.Workspace;
 import org.eclipse.che.api.core.model.workspace.WorkspaceConfig;
 import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
@@ -65,8 +66,10 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -400,414 +403,76 @@ public class WorkspaceManagerTest {
 
     @Test
     public void startsTemporaryWorkspace() throws Exception {
-        final WorkspaceConfigImpl cfg = createConfig();
-        final WorkspaceImpl workspace = createAndMockWorkspace(cfg, NAMESPACE_1);
+        final WorkspaceConfigImpl workspaceConfig = createConfig();
+        final WorkspaceImpl workspace = createAndMockWorkspace(workspaceConfig, NAMESPACE_1);
         mockRuntime(workspace, STARTING);
         mockAnyWorkspaceStart();
         when(workspaceDao.get(workspace.getId())).thenReturn(workspace);
 
-        workspaceManager.startWorkspace(cfg, workspace.getNamespace(), true, emptyMap());
+        workspaceManager.startWorkspace(workspaceConfig, workspace.getNamespace(), true, emptyMap());
 
         verify(runtimes).startAsync(workspaceCaptor.capture(), eq(workspace.getConfig().getDefaultEnv()), any());
         assertTrue(workspaceCaptor.getValue().isTemporary());
     }
 
-//    @Test
-//    public void shouldBeAbleToStopWorkspace() throws Exception {
-//        WorkspaceImpl workspace = createAndMockWorkspace(createConfig(), NAMESPACE_1);
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        // when
-//        workspaceManager.stopWorkspace(workspace.getId());
-//
-//        // then
-//        captureAsyncTaskAndExecuteSynchronously();
-//
-//        verify(runtimes).stop(workspace.getId());
-//
-//        verify(workspaceDao).update(workspaceCaptor.capture());
-//        WorkspaceImpl updated = workspaceCaptor.getValue();
-//        assertNotNull(updated.getAttributes().get(UPDATED_ATTRIBUTE_NAME));
-//    }
-//
-//    @Test
-//    public void createsSnapshotBeforeStoppingWorkspace() throws Exception {
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        workspaceManager.stopWorkspace(workspace.getId(), true);
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes).snapshot(workspace.getId());
-//    }
-//
-//    @Test(expectedExceptions = ConflictException.class,
-//          expectedExceptionsMessageRegExp = "Could not stop the workspace " +
-//                                            "'.*' because its status is 'STARTING'.")
-//    public void failsToStopNotRunningWorkspace() throws Exception {
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//        createAndMockDescriptor(workspace, STARTING);
-//
-//        workspaceManager.stopWorkspace(workspace.getId());
-//    }
-//
-//    @Test
-//    public void shouldStopWorkspaceEventIfSnapshotCreationFailed() throws Exception {
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//        createAndMockDescriptor(workspace, RUNNING);
-//        doThrow(new ServerException("Test")).when(runtimes).snapshot(workspace.getId());
-//
-//        workspaceManager.stopWorkspace(workspace.getId(), true);
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes).stop(any());
-//    }
-//
-//    @Test
-//    public void shouldRemoveTemporaryWorkspaceAfterStop() throws Exception {
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//        workspace.setTemporary(true);
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        workspaceManager.stopWorkspace(workspace.getId());
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(workspaceDao).remove(workspace.getId());
-//    }
-//
-//    @Test
-//    public void shouldRemoveTemporaryWorkspaceAfterStartFailed() throws Exception {
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//        workspace.setTemporary(true);
-//        createAndMockDescriptor(workspace, RUNNING);
-//        doThrow(new ServerException("")).when(runtimes).stop(workspace.getId());
-//
-//        workspaceManager.stopWorkspace(workspace.getId());
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(workspaceDao).remove(workspace.getId());
-//    }
-//
-//    @Test
-//    public void shouldBeAbleToGetSnapshots() throws Exception {
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        final SnapshotImpl wsSnapshot = SnapshotImpl.builder()
-//                                                    .setDev(true)
-//                                                    .setEnvName("envName")
-//                                                    .setId("snap1")
-//                                                    .setMachineName("machine1")
-//                                                    .setWorkspaceId(workspace.getId()).build();
-//        when(snapshotDao.findSnapshots(workspace.getId())).thenReturn(singletonList(wsSnapshot));
-//
-//        final List<SnapshotImpl> snapshots = workspaceManager.getSnapshot(workspace.getId());
-//
-//        assertEquals(snapshots.size(), 1);
-//        assertEquals(snapshots.get(0), wsSnapshot);
-//    }
-//
-//    @Test
-//    public void shouldNotCreateSnapshotIfWorkspaceIsTemporaryAndAutoCreateSnapshotActivated() throws Exception {
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        workspace.getAttributes().put(Constants.AUTO_CREATE_SNAPSHOT, "true");
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        SnapshotImpl oldSnapshot = mock(SnapshotImpl.class);
-//        when(snapshotDao.getSnapshot(eq(workspace.getId()),
-//                                     eq(workspace.getConfig().getDefaultEnv()),
-//                                     anyString()))
-//                .thenReturn(oldSnapshot);
-//        workspace.setTemporary(true);
-//
-//        workspaceManager.stopWorkspace(workspace.getId());
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes, never()).snapshot(workspace.getId());
-//        verify(runtimes).stop(workspace.getId());
-//    }
-//
-//    @Test
-//    public void shouldNotCreateSnapshotIfWorkspaceIsTemporaryAndAutoCreateSnapshotDisactivated() throws Exception {
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        workspace.getAttributes().put(Constants.AUTO_CREATE_SNAPSHOT, "false");
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        SnapshotImpl oldSnapshot = mock(SnapshotImpl.class);
-//        when(snapshotDao.getSnapshot(eq(workspace.getId()),
-//                                     eq(workspace.getConfig().getDefaultEnv()),
-//                                     anyString()))
-//                .thenReturn(oldSnapshot);
-//        workspace.setTemporary(true);
-//
-//        workspaceManager.stopWorkspace(workspace.getId());
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes, never()).snapshot(workspace.getId());
-//        verify(runtimes).stop(workspace.getId());
-//    }
-//
-//    @Test
-//    public void shouldCreateWorkspaceSnapshotUsingDefaultValueForAutoRestore() throws Exception {
-//        // given
-//        workspaceManager = new WorkspaceManager(workspaceDao,
-//                                                runtimes,
-//                                                eventService,
-//                                                accountManager,
-//                                                true,
-//                                                false,
-//                                                snapshotDao,
-//                                                sharedPool);
-//
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        SnapshotImpl oldSnapshot = mock(SnapshotImpl.class);
-//        when(snapshotDao.getSnapshot(eq(workspace.getId()),
-//                                     eq(workspace.getConfig().getDefaultEnv()),
-//                                     anyString()))
-//                .thenReturn(oldSnapshot);
-//
-//        // when
-//        workspaceManager.stopWorkspace(workspace.getId());
-//
-//        // then
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes).snapshot(workspace.getId());
-//        verify(runtimes).stop(workspace.getId());
-//    }
-//
-//    @Test
-//    public void shouldStartWorkspaceFromSnapshotUsingDefaultValueForAutoRestore() throws Exception {
-//        workspaceManager = new WorkspaceManager(workspaceDao,
-//                                                runtimes,
-//                                                eventService,
-//                                                accountManager,
-//                                                false,
-//                                                true,
-//                                                snapshotDao,
-//                                                sharedPool);
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//
-//        SnapshotImpl.SnapshotBuilder snapshotBuilder = SnapshotImpl.builder()
-//                                                                   .generateId()
-//                                                                   .setEnvName("env")
-//                                                                   .setDev(true)
-//                                                                   .setMachineName("machine1")
-//                                                                   .setWorkspaceId(workspace.getId())
-//                                                                   .setType("docker")
-//                                                                   .setMachineSource(new MachineSourceImpl("image"));
-//        SnapshotImpl snapshot1 = snapshotBuilder.build();
-//        SnapshotImpl snapshot2 = snapshotBuilder.generateId()
-//                                                .setDev(false)
-//                                                .setMachineName("machine2")
-//                                                .build();
-//        when(snapshotDao.findSnapshots(workspace.getId()))
-//                .thenReturn(asList(snapshot1, snapshot2));
-//
-//        workspaceManager.startWorkspace(workspace.getId(), workspace.getConfig().getDefaultEnv(), null);
-//
-//        verify(runtimes).startAsync(workspace, workspace.getConfig().getDefaultEnv(), true);
-//    }
-//
-//    @Test
-//    public void shouldBeAbleToRemoveMachinesSnapshots() throws Exception {
-//        // given
-//        String testWsId = "testWsId";
-//        String testNamespace = "testNamespace";
-//        WorkspaceImpl workspaceMock = mock(WorkspaceImpl.class);
-//        when(workspaceDao.get(testWsId)).thenReturn(workspaceMock);
-//        when(workspaceMock.getNamespace()).thenReturn(testNamespace);
-//        SnapshotImpl.SnapshotBuilder snapshotBuilder = SnapshotImpl.builder()
-//                                                                   .generateId()
-//                                                                   .setEnvName("env")
-//                                                                   .setDev(true)
-//                                                                   .setMachineName("machine1")
-//                                                                   .setWorkspaceId(testWsId)
-//                                                                   .setType("docker")
-//                                                                   .setMachineSource(new MachineSourceImpl("image"));
-//        SnapshotImpl snapshot1 = snapshotBuilder.build();
-//        SnapshotImpl snapshot2 = snapshotBuilder.generateId()
-//                                                .setDev(false)
-//                                                .setMachineName("machine2")
-//                                                .build();
-//        when(snapshotDao.findSnapshots(testWsId)).thenReturn(asList(snapshot1, snapshot2));
-//
-//        // when
-//        workspaceManager.removeSnapshots(testWsId);
-//
-//        // then
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes).removeBinaries(asList(snapshot1, snapshot2));
-//        InOrder snapshotDaoInOrder = inOrder(snapshotDao);
-//        snapshotDaoInOrder.verify(snapshotDao).removeSnapshot(snapshot1.getId());
-//        snapshotDaoInOrder.verify(snapshotDao).removeSnapshot(snapshot2.getId());
-//    }
-//
-//    @Test
-//    public void shouldRemoveMachinesSnapshotsEvenSomeRemovalFails() throws Exception {
-//        // given
-//        String testWsId = "testWsId";
-//        String testNamespace = "testNamespace";
-//        WorkspaceImpl workspaceMock = mock(WorkspaceImpl.class);
-//        when(workspaceDao.get(testWsId)).thenReturn(workspaceMock);
-//        when(workspaceMock.getNamespace()).thenReturn(testNamespace);
-//        SnapshotImpl.SnapshotBuilder snapshotBuilder = SnapshotImpl.builder()
-//                                                                   .generateId()
-//                                                                   .setEnvName("env")
-//                                                                   .setDev(true)
-//                                                                   .setMachineName("machine1")
-//                                                                   .setWorkspaceId(testWsId)
-//                                                                   .setType("docker")
-//                                                                   .setMachineSource(new MachineSourceImpl("image"));
-//        SnapshotImpl snapshot1 = snapshotBuilder.build();
-//        SnapshotImpl snapshot2 = snapshotBuilder.generateId()
-//                                                .setDev(false)
-//                                                .setMachineName("machine2")
-//                                                .build();
-//        when(snapshotDao.findSnapshots(testWsId)).thenReturn(asList(snapshot1, snapshot2));
-//        doThrow(new SnapshotException("test")).when(snapshotDao).removeSnapshot(snapshot1.getId());
-//
-//        // when
-//        workspaceManager.removeSnapshots(testWsId);
-//
-//        // then
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes).removeBinaries(singletonList(snapshot2));
-//        verify(snapshotDao).removeSnapshot(snapshot1.getId());
-//        verify(snapshotDao).removeSnapshot(snapshot2.getId());
-//    }
-//
-//    @Test
-//    public void shouldBeAbleToStartMachineInRunningWs() throws Exception {
-//        // given
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//        RuntimeDescriptor descriptor = createAndMockDescriptor(workspace, RUNNING);
-//        OldMachineConfigImpl machineConfig = createMachine(workspace.getId(),
-//                                                        descriptor.getRuntime().getActiveEnv(),
-//                                                        false).getConfig();
-//
-//        // when
-//        workspaceManager.startMachine(machineConfig, workspace.getId());
-//
-//        // then
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes).startMachine(workspace.getId(), machineConfig);
-//    }
-//
-//    @Test(expectedExceptions = ConflictException.class, expectedExceptionsMessageRegExp = "Workspace .* is not running, new machine can't be started")
-//    public void shouldThrowExceptionOnStartMachineInNonRunningWs() throws Exception {
-//        // given
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//        OldMachineConfigImpl machineConfig = createMachine(workspace.getId(), "env1", false).getConfig();
-//
-//        // when
-//        workspaceManager.startMachine(machineConfig, workspace.getId());
-//    }
-//
-//    @Test
-//    public void shouldBeAbleToCreateSnapshot() throws Exception {
-//        // then
-//        WorkspaceImpl workspace = createAndMockWorkspace();
-//        createAndMockDescriptor(workspace, RUNNING);
-//        SnapshotImpl oldSnapshot = mock(SnapshotImpl.class);
-//        when(snapshotDao.getSnapshot(eq(workspace.getId()),
-//                                     eq(workspace.getConfig().getDefaultEnv()),
-//                                     anyString()))
-//                .thenReturn(oldSnapshot);
-//
-//        // when
-//        workspaceManager.createSnapshot(workspace.getId());
-//
-//        // then
-//        verify(runtimes).snapshotAsync(workspace.getId());
-//    }
-//
-//    @Test
-//    public void shouldBeAbleToStopMachine() throws Exception {
-//        // given
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        RuntimeDescriptor descriptor = createAndMockDescriptor(workspace, RUNNING);
-//        OldMachineImpl machine = descriptor.getRuntime().getMachines().get(0);
-//
-//        // when
-//        workspaceManager.stopMachine(workspace.getId(), machine.getId());
-//
-//        // then
-//        verify(runtimes).stopMachine(workspace.getId(), machine.getId());
-//    }
-//
-//    @Test(expectedExceptions = ConflictException.class,
-//          expectedExceptionsMessageRegExp = "Could not .* the workspace '.*' because its status is '.*'.")
-//    public void shouldNotStopMachineIfWorkspaceIsNotRunning() throws Exception {
-//        // given
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//
-//        // when
-//        workspaceManager.stopMachine(workspace.getId(), "someId");
-//    }
-//
-//    @Test
-//    public void shouldBeAbleToGetMachineInstanceIfWorkspaceIsRunning() throws Exception {
-//        // given
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        RuntimeDescriptor descriptor = createAndMockDescriptor(workspace, RUNNING);
-//        OldMachineImpl machine = descriptor.getRuntime().getMachines().get(0);
-//
-//        // when
-//        workspaceManager.getMachineInstance(workspace.getId(), machine.getId());
-//
-//        // then
-//        verify(runtimes).getMachine(workspace.getId(), machine.getId());
-//    }
-//
-//    @Test
-//    public void shouldBeAbleToGetMachineInstanceIfWorkspaceIsStarting() throws Exception {
-//        // given
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        RuntimeDescriptor descriptor = createAndMockDescriptor(workspace, STARTING);
-//        OldMachineImpl machine = descriptor.getRuntime().getMachines().get(0);
-//
-//        // when
-//        workspaceManager.getMachineInstance(workspace.getId(), machine.getId());
-//
-//        // then
-//        verify(runtimes).getMachine(workspace.getId(), machine.getId());
-//    }
-//
-//    @Test
-//    public void passedCreateSnapshotParameterIsUsedInPreferenceToAttribute() throws Exception {
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        workspace.getAttributes().put(AUTO_CREATE_SNAPSHOT, "true");
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        workspaceManager.stopWorkspace(workspace.getId(), false);
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes, never()).snapshot(workspace.getId());
-//    }
-//
-//    @Test
-//    public void passedNullCreateSnapshotParameterIsIgnored() throws Exception {
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        workspace.getAttributes().put(AUTO_CREATE_SNAPSHOT, "true");
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        workspaceManager.stopWorkspace(workspace.getId(), null);
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes).snapshot(workspace.getId());
-//    }
-//
-//    @Test
-//    public void passedFalseCreateSnapshotParameterIsUsedInPreferenceToAttribute() throws Exception {
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        workspace.getAttributes().put(AUTO_CREATE_SNAPSHOT, "true");
-//        createAndMockDescriptor(workspace, RUNNING);
-//
-//        workspaceManager.stopWorkspace(workspace.getId(), false);
-//
-//        captureAsyncTaskAndExecuteSynchronously();
-//        verify(runtimes, never()).snapshot(workspace.getId());
-//    }
+    @Test
+    public void stopsWorkspace() throws Exception {
+        final WorkspaceImpl workspace = createAndMockWorkspace(createConfig(), NAMESPACE_1);
+        mockRuntime(workspace, RUNNING);
+
+        workspaceManager.stopWorkspace(workspace.getId(), emptyMap());
+
+        captureRunAsyncCallsAndRunSynchronously();
+        verify(runtimes).stop(workspace.getId(), emptyMap());
+        verify(workspaceDao).update(workspaceCaptor.capture());
+        assertNotNull(workspaceCaptor.getValue().getAttributes().get(UPDATED_ATTRIBUTE_NAME));
+    }
+
+    @Test(expectedExceptions = ConflictException.class,
+          expectedExceptionsMessageRegExp = "Could not stop the workspace " +
+                                            "'.*' because its status is 'STOPPED'.")
+    public void throwsConflictExceptionWhenStoppingWorkspaceWithoutRuntime() throws Exception {
+        final WorkspaceImpl workspace = createAndMockWorkspace();
+
+        workspaceManager.stopWorkspace(workspace.getId(), emptyMap());
+    }
+
+    @Test
+    public void removesTemporaryWorkspaceAfterStop() throws Exception {
+        final WorkspaceImpl workspace = createAndMockWorkspace();
+        workspace.setTemporary(true);
+        mockRuntime(workspace, RUNNING);
+
+        workspaceManager.stopWorkspace(workspace.getId(), emptyMap());
+
+        captureRunAsyncCallsAndRunSynchronously();
+        verify(runtimes).stop(workspace.getId(), emptyMap());
+        verify(workspaceDao).remove(workspace.getId());
+    }
+
+    @Test
+    public void removesTemporaryWorkspaceAfterStopFailed() throws Exception {
+        final WorkspaceImpl workspace = createAndMockWorkspace();
+        workspace.setTemporary(true);
+        mockRuntime(workspace, RUNNING);
+        doThrow(new ConflictException("runtime stop failed")).when(runtimes).stop(workspace.getId(), emptyMap());
+
+        workspaceManager.stopWorkspace(workspace.getId(), emptyMap());
+        captureRunAsyncCallsAndRunSynchronously();
+        verify(workspaceDao).remove(workspace.getId());
+    }
+
+    @Test
+    public void removesTemporaryWorkspaceAfterStartFailed() throws Exception {
+        final WorkspaceConfigImpl workspaceConfig = createConfig();
+        final WorkspaceImpl workspace = createAndMockWorkspace(workspaceConfig, NAMESPACE_1);
+        workspace.setTemporary(true);
+        mockAnyWorkspaceStartFailed(new ServerException("start failed"));
+
+        workspaceManager.startWorkspace(workspaceConfig, workspace.getNamespace(), true, emptyMap());
+
+        verify(workspaceDao, times(1)).remove(anyString());
+    }
 
     private void captureRunAsyncCallsAndRunSynchronously() {
         verify(sharedPool, atLeastOnce()).runAsync(taskCaptor.capture());
@@ -880,6 +545,12 @@ public class WorkspaceManagerTest {
 
     private void mockAnyWorkspaceStart() throws Exception {
         CompletableFuture<Void> cmpFuture = CompletableFuture.completedFuture(null);
+        when(runtimes.startAsync(any(), anyString(), any())).thenReturn(cmpFuture);
+    }
+
+    private void mockAnyWorkspaceStartFailed(Exception cause) throws Exception {
+        final CompletableFuture<Void> cmpFuture = new CompletableFuture<>();
+        cmpFuture.completeExceptionally(cause);
         when(runtimes.startAsync(any(), anyString(), any())).thenReturn(cmpFuture);
     }
 
