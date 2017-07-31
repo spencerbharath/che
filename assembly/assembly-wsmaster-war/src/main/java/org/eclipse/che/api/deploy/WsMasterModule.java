@@ -232,7 +232,5 @@ public class WsMasterModule extends AbstractModule {
         install(new LocalDockerModule());
         install(new OpenshiftInfraModule());
         bind(RemoveWorkspaceFilesAfterRemoveWorkspaceEventSubscriber.class).asEagerSingleton();
-
-
     }
 }
