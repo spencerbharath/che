@@ -449,25 +449,6 @@ public class WorkspaceRuntimes {
         return !runtimes.isEmpty();
     }
 
-    /**
-     * Return status of the workspace.
-     *
-     * @param workspaceId
-     *         ID of requested workspace
-     * @return {@link WorkspaceStatus#STOPPED} if workspace is not running or,
-     * the status of workspace runtime otherwise
-     */
-    public WorkspaceStatus getStatus(String workspaceId) {
-        requireNonNull(workspaceId, "Required non-null workspace id");
-        try (@SuppressWarnings("unused") Unlocker u = locks.readLock(workspaceId)) {
-            RuntimeState state = runtimes.get(workspaceId);
-            if (state == null) {
-                return WorkspaceStatus.STOPPED;
-            }
-            return state.status;
-        }
-    }
-
     private class CleanupRuntimeOnAbnormalRuntimeStop implements EventSubscriber<RuntimeStatusEvent> {
         @Override
         public void onEvent(RuntimeStatusEvent event) {

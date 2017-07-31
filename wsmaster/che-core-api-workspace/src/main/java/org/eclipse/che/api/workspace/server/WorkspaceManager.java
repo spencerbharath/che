@@ -432,7 +432,7 @@ public class WorkspaceManager {
             for (String workspaceId : runtimes.getRuntimesIds()) {
                 try {
                     WorkspaceImpl workspace = workspaceDao.get(workspaceId);
-                    workspace.setStatus(runtimes.getStatus(workspaceId));
+                    runtimes.injectStatus(workspace);
                     if (workspace.getStatus() == RUNNING || workspace.getStatus() == STARTING) {
                         runningOrStarting.add(workspace);
                     }
