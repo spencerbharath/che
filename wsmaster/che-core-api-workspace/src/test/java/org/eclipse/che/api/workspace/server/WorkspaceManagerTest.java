@@ -215,27 +215,20 @@ public class WorkspaceManagerTest {
 
     @Test
     public void getsWorkspacesAvailableForUserWithRuntimes() throws Exception {
-        // given
         final WorkspaceConfig config = createConfig();
 
         final WorkspaceImpl workspace1 = createAndMockWorkspace(config, NAMESPACE_1);
         final WorkspaceImpl workspace2 = createAndMockWorkspace(config, NAMESPACE_2);
         final TestInternalRuntime runtime2 = mockRuntime(workspace2, RUNNING);
-
         when(workspaceDao.getWorkspaces(NAMESPACE_1)).thenReturn(asList(workspace1, workspace2));
 
-
-        // when
         final List<WorkspaceImpl> result = workspaceManager.getWorkspaces(NAMESPACE_1, true);
 
-        // then
         assertEquals(result.size(), 2);
-
         final WorkspaceImpl res1 = result.get(0);
         assertEquals(res1.getStatus(), STOPPED, "Workspace status wasn't changed from STARTING to STOPPED");
         assertNull(res1.getRuntime(), "Workspace has unexpected runtime");
         assertFalse(res1.isTemporary(), "Workspace must be permanent");
-
         final WorkspaceImpl res2 = result.get(1);
         assertEquals(res2.getStatus(), RUNNING, "Workspace status wasn't changed to the runtime instance status");
         assertEquals(res2.getRuntime(), runtime2, "Workspace doesn't have expected runtime");
@@ -245,19 +238,14 @@ public class WorkspaceManagerTest {
     @Test
     public void stopsRunningWorkspacesOnShutdown() throws Exception {
         when(runtimes.refuseWorkspacesStart()).thenReturn(true);
-
         WorkspaceImpl stopped = createAndMockWorkspace();
         mockRuntime(stopped, STOPPED);
-
         WorkspaceImpl starting = createAndMockWorkspace();
         mockRuntime(starting, STARTING);
-
         WorkspaceImpl running = createAndMockWorkspace();
         mockRuntime(running, RUNNING);
-
         when(runtimes.getRuntimesIds()).thenReturn(new HashSet<>(asList(running.getId(), starting.getId())));
 
-        // action
         workspaceManager.shutdown();
 
         captureRunAsyncCallsAndRunSynchronously();
