@@ -587,8 +587,8 @@ public class WorkspaceManager {
                                                .setAttributes(attributes)
                                                .setTemporary(isTemporary)
                                                .setStatus(STOPPED)
-                                               .putAttribute(CREATED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()))
                                                .build();
+        workspace.getAttributes().put(CREATED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()));
 
         workspaceDao.create(workspace);
         LOG.info("Workspace '{}/{}' with id '{}' created by user '{}'",

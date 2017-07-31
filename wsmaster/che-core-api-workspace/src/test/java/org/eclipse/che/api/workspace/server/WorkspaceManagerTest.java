@@ -398,19 +398,20 @@ public class WorkspaceManagerTest {
         workspaceManager.startWorkspace(workspace.getId(), "fake", null);
     }
 
-//    @Test
-//    public void startsTemporaryWorkspace() throws Exception {
-//        final WorkspaceImpl workspace = createAndMockWorkspace();
-//        mockRuntime(workspace, STARTING);
-//        mockStart(workspace);
-//        when(workspaceDao.get(workspace.getId())).thenReturn(workspace);
-//
-//        workspaceManager.startWorkspace(workspace.getId(), workspace.getConfig().getDefaultEnv(), emptyMap());
-//
-//        verify(runtimes).startAsync(eq(workspaceCaptor.capture()), anyString(), emptyMap());
-//        assertTrue(workspaceCaptor.getValue().isTemporary());
-//    }
-//
+    @Test
+    public void startsTemporaryWorkspace() throws Exception {
+        final WorkspaceConfigImpl cfg = createConfig();
+        final WorkspaceImpl workspace = createAndMockWorkspace(cfg, NAMESPACE_1);
+        mockRuntime(workspace, STARTING);
+        mockAnyWorkspaceStart();
+        when(workspaceDao.get(workspace.getId())).thenReturn(workspace);
+
+        workspaceManager.startWorkspace(cfg, workspace.getNamespace(), true, emptyMap());
+
+        verify(runtimes).startAsync(workspaceCaptor.capture(), eq(workspace.getConfig().getDefaultEnv()), any());
+        assertTrue(workspaceCaptor.getValue().isTemporary());
+    }
+
 //    @Test
 //    public void shouldBeAbleToStopWorkspace() throws Exception {
 //        WorkspaceImpl workspace = createAndMockWorkspace(createConfig(), NAMESPACE_1);
@@ -835,8 +836,8 @@ public class WorkspaceManagerTest {
                                                            workspace.getConfig().getDefaultEnv(),
                                                            workspace.getNamespace());
         when(runtimes.getStatus(workspace.getId())).thenReturn(status);
-        MachineImpl machine1 = spy(createMachine(workspace.getId(), workspace.getConfig().getDefaultEnv(), true));
-        MachineImpl machine2 = spy(createMachine(workspace.getId(), workspace.getConfig().getDefaultEnv(), false));
+        MachineImpl machine1 = spy(createMachine());
+        MachineImpl machine2 = spy(createMachine());
         Map<String, Machine> machines = new HashMap<>();
         machines.put("machine1", machine1);
         machines.put("machine2", machine2);
@@ -899,7 +900,7 @@ public class WorkspaceManagerTest {
                                   .build();
     }
 
-    private MachineImpl createMachine(String workspaceId, String envName, boolean isDev) {
+    private MachineImpl createMachine() {
         return new MachineImpl(emptyMap(), emptyMap());
     }
 
