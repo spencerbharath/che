@@ -42,7 +42,8 @@ export class WebsocketClient implements ICommunicationClient {
       deferred.reject();
     });
     this.websocketStream.onMessage((message: any) => {
-      this.onResponse(message);
+      let data = JSON.parse(message.data);
+      this.onResponse(data);
     });
 
     return deferred.promise;

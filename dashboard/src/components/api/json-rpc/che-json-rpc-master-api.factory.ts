@@ -23,11 +23,16 @@ enum MasterChannels {
  */
 export class CheJsonRpcMasterApi {
   private cheJsonRpcApi: CheJsonRpcApiClient;
+  private wsClient: WebsocketClient;
   private channels: Map<MasterChannels, IChannel>;
 
+  /**
+   * Default constructor that is using resource
+   * @ngInject for Dependency injection
+   */
   constructor ($websocket: ng.websocket.IWebSocketProvider, $q: ng.IQService) {
-    let wsClient = new WebsocketClient($websocket, $q);
-    this.cheJsonRpcApi = new CheJsonRpcApiClient(wsClient);
+    this.wsClient = new WebsocketClient($websocket, $q);
+    this.cheJsonRpcApi = new CheJsonRpcApiClient(this.wsClient);
 
     this.channels = new Map<MasterChannels, IChannel>();
     this.channels.set(MasterChannels.ENVIRONMENT_OUTPUT, {
@@ -51,8 +56,12 @@ export class CheJsonRpcMasterApi {
     this.channels.set(MasterChannels.WORKSPACE_STATUS, {
       subscription: 'event:workspace-status:subscribe',
       unsubscription: 'event:workspace-status:un-subscribe',
-      notification: 'event:workspace-status:change'
+      notification: 'event:workspace-status:changed'
     });
+  }
+
+  connect(entrypoint: string): ng.IPromise<any> {
+    return this.cheJsonRpcApi.connect(entrypoint);
   }
 
   subscribeEnvironmentOutput(workspaceId: string, machineName: string, callback: Function): void {

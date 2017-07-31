@@ -206,7 +206,9 @@ export class LoadFactoryController {
     var workspace = null;
     switch (createPolicy) {
       case 'perUser' :
+        debugger;
         workspace = this.lodash.find(this.workspaces, (w: che.IWorkspace) => {
+          debugger;
           return this.factory.id === w.attributes.factoryId;
         });
         break;
@@ -453,6 +455,7 @@ export class LoadFactoryController {
    * @param bus
    */
   importProjects(bus: any): void {
+    debugger;
     let promise = this.cheAPI.getWorkspace().fetchWorkspaceDetails(this.workspace.id);
     promise.then(() => {
       let projects = this.cheAPI.getWorkspace().getWorkspacesById().get(this.workspace.id).config.projects;

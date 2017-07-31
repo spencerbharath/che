@@ -16,6 +16,7 @@ import {DockerFileEnvironmentManager} from './environment/docker-file-environmen
 import {DockerImageEnvironmentManager} from './environment/docker-image-environment-manager';
 import {CheEnvironmentRegistry} from './environment/che-environment-registry.factory';
 import {CheWebsocket} from './che-websocket.factory';
+import {CheJsonRpcMasterApi} from './json-rpc/che-json-rpc-master-api.factory';
 
 interface ICHELicenseResource<T> extends ng.resource.IResourceClass<T> {
   create: any;
@@ -30,7 +31,7 @@ interface ICHELicenseResource<T> extends ng.resource.IResourceClass<T> {
   addCommand: any;
   getSettings: any;
 }
-
+const websocketMasterApi: string = '/wsmaster/websocket/';
 /**
  * This class is handling the workspace retrieval
  * It sets to the array workspaces the current workspaces which are not temporary
@@ -40,6 +41,8 @@ export class CheWorkspace {
   private $resource: ng.resource.IResourceService;
   private $http: ng.IHttpService;
   private $q: ng.IQService;
+  private $log: ng.ILogService;
+  private cheJsonRpcMasterApi: CheJsonRpcMasterApi;
   private listeners: Array<any>;
   private workspaceStatuses: Array<string>;
   private workspaces: Array<che.IWorkspace>;
@@ -57,15 +60,19 @@ export class CheWorkspace {
    * Default constructor that is using resource
    * @ngInject for Dependency injection
    */
-  constructor($resource: ng.resource.IResourceService, $http: ng.IHttpService, $q: ng.IQService, cheWebsocket: CheWebsocket, lodash: any, cheEnvironmentRegistry: CheEnvironmentRegistry, $log: ng.ILogService) {
+  constructor($resource: ng.resource.IResourceService, $http: ng.IHttpService, $q: ng.IQService, cheWebsocket: CheWebsocket,
+              $location: ng.ILocationService, proxySettings : string, userDashboardConfig: any, cheJsonRpcMasterApi: CheJsonRpcMasterApi,
+              lodash: any, cheEnvironmentRegistry: CheEnvironmentRegistry, $log: ng.ILogService) {
     this.workspaceStatuses = ['RUNNING', 'STOPPED', 'PAUSED', 'STARTING', 'STOPPING', 'ERROR'];
 
     // keep resource
     this.$q = $q;
     this.$resource = $resource;
     this.$http = $http;
+    this.$log = $log;
     this.lodash = lodash;
     this.cheWebsocket = cheWebsocket;
+    this.cheJsonRpcMasterApi = cheJsonRpcMasterApi;
 
     // current list of workspaces
     this.workspaces = [];
@@ -106,7 +113,7 @@ export class CheWorkspace {
     cheEnvironmentRegistry.addEnvironmentManager('compose', new ComposeEnvironmentManager($log));
     cheEnvironmentRegistry.addEnvironmentManager('dockerfile', new DockerFileEnvironmentManager($log));
     cheEnvironmentRegistry.addEnvironmentManager('dockerimage', new DockerImageEnvironmentManager($log));
-
+    this.connectWsMasterApi($location, proxySettings, userDashboardConfig.developmentMode);
     this.fetchWorkspaceSettings();
   }
 
@@ -571,11 +578,8 @@ export class CheWorkspace {
    */
   startUpdateWorkspaceStatus(workspaceId: string): void {
     if (this.subscribedWorkspacesIds.indexOf(workspaceId) < 0) {
-      let bus = this.cheWebsocket.getBus();
       this.subscribedWorkspacesIds.push(workspaceId);
-
-      bus.subscribe('workspace:' + workspaceId, (message: any) => {
-
+      this.cheJsonRpcMasterApi.subscribeWorkspaceStatus(workspaceId, (message: any) => {
         // filter workspace events, which really indicate the status change:
         if (this.workspaceStatuses.indexOf(message.eventType) >= 0) {
           this.getWorkspaceById(workspaceId).status = message.eventType;
@@ -645,5 +649,24 @@ export class CheWorkspace {
     }
     this.workspacesById.set(workspace.id, workspace);
     this.startUpdateWorkspaceStatus(workspace.id);
+  }
+
+  private connectWsMasterApi($location: ng.ILocationService, proxySettings : string, devmode: boolean): void {
+    let wsUrl;
+    let applicationID: number = new Date().getTime();
+
+    if (devmode) {
+      // it handle then http and https
+      wsUrl = proxySettings.replace('http', 'ws') + websocketMasterApi;
+    } else {
+      let wsProtocol;
+      wsProtocol = 'http' === $location.protocol() ? 'ws' : 'wss';
+      wsUrl = wsProtocol + '://' + $location.host() + ':' + $location.port() + websocketMasterApi;
+    }
+    this.cheJsonRpcMasterApi.connect(wsUrl + applicationID).then(() => {
+      this.$log.info('Connected to workspace master: ' + wsUrl);
+    }, (error: any) => {
+      this.$log.error('Failed to connect to workspace master: ' + wsUrl, error);
+    });
   }
 }
